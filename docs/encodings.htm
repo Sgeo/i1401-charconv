@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>IBM 1401 emulator encodings</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/unifont@5.2.5/index.min.css">
+        <style>
+            table#encodings-table {
+                border-style: outset;
+            }
+            table#encodings-table th {
+                border-style: inset;
+            }
+            table#encodings-table td {
+                border-style: inset;
+            }
+            .bcd {
+                font-family: monospace;
+            }
+            .char {
+                font-family: "Unifont";
+            }
+        </style>
+    </head>
+    <body>
+        <p>This is a table of encodings for IBM 1401 emulators, which need to map BCD to readable characters and back. The rest of the characters are what the encoding will accept and turn into that BCD character.</p>
+        <p>Encodings:</p>
+        <ul>
+            <li><b>reference</b>: Based on my interpretation of the IBM 1401 Reference Manual from 1962</li>
+            <li><b>simh-old</b>, <b>simh-new-a</b>, <b>simh-new-h</b>: <a href="https://simh.trailing-edge.com/">SIMH</a>'s translations.</li>
+            <li><b>vdc</b>: <a href="https://rolffson.de">Michael Schuetz's Virtual Data Center</a>, a 3D simulation of the IBM 1401</li>
+            <li><b>newcomer</b>: <a href="https://www.piercefuller.com/oldibm-shadow/1401.html">Joe Newcomer's IBM 1401 emulator for DOS</a>. Note that for display it customizes the on-screen characters. Also note that it uses and assumes CP-437, rather than Unicode or ASCII.</li>
+            <li><b>sim1401-1047</b>: The translation used by IBM's 1401 simulator for the System/360. The tables convert to and from EBCDIC, so for this encoding I treated those EBCDIC characters as EBCDIC-1047. I assume that the goal of these tables is to keep IBM 1401 decks compatible, even while representing different characters, but I didn't check. Note that the <code>A</code>-only character cannot be read in by this encoding, and gets output as 0. For use with Hercules I suggest setting <code>codepage 819/1047</code></li>
+        </ul>
+        <table id="encodings-table">
+            <tr id="encoding-names-row">
+                <th>BCD</th>
+            </tr>
+        </table>
+        <script type="module">
+            import encodings from "./encodings.json" with {"type": "json"};
+
+            function bcd_to_display(bcd) {
+                const FULL_CHAR = "BA8421";
+                let result_array = ["\u{00A0}", "\u{00A0}", "\u{00A0}", "\u{00A0}", "\u{00A0}", "\u{00A0}"];
+                for(let bit = 0; bit < 6; bit++) {
+                    let mask = 1<<bit;
+                    if(mask & bcd) {
+                        result_array[5-bit] = FULL_CHAR[5-bit];
+                    }
+                }
+                let result = result_array.join("");
+                return result;
+            }
+
+
+            const ENCODINGS_TO_SHOW = ['reference', 'simh-old', 'simh-new-a', 'simh-new-h', 'vdc', 'newcomer', 'sim1401-1047'];
+            let table = document.querySelector("#encodings-table");
+            let table_encoding_names_row = document.querySelector("#encoding-names-row");
+            for(let encoding_name of ENCODINGS_TO_SHOW) {
+                let th = document.createElement("th");
+                table_encoding_names_row.append(th);
+                th.textContent = encoding_name;    
+            }
+            for(let bcd = 1; bcd < 64; bcd++) {
+                let table_row = table.insertRow();
+                let bcd_cell = table_row.insertCell();
+                bcd_cell.className = "bcd";
+                bcd_cell.textContent = bcd_to_display(bcd);
+                for(let encoding_name of ENCODINGS_TO_SHOW) {
+                    let encoding = encodings[encoding_name];
+                    let encoding_cell = table_row.insertCell();
+                    encoding_cell.className = "char";
+                    let char = encoding.encode[bcd];
+                    if(char === " ") {
+                        char = "\u{00A0}";
+                    }
+                    encoding_cell.textContent = encoding.encode[bcd];
+                    let supports = {[encoding.encode[bcd]]: true}; // What characters the encoding supports. Not correct for round trip failures.
+                    for(let [encoding_char, encoding_bcd] of Object.entries(encoding.decode)) {
+                        if(encoding_bcd == bcd && !supports[encoding_char]) {
+                            supports[encoding_char] = true;
+                            encoding_cell.textContent += encoding_char;
+                        }
+                    }
+                }
+            }
+        </script>
+    </body>
+</html>
