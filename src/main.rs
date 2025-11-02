@@ -7,9 +7,9 @@ use std::io;
 
 #[derive(Parser)]
 struct Cli {
-    #[arg(long)]
+    #[arg(short, long)]
     from: String,
-    #[arg(long)]
+    #[arg(short, long)]
     to: String
 }
 
